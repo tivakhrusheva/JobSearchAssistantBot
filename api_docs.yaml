@@ -1,0 +1,619 @@
+openapi: 3.0.3
+info:
+  title: Job Search Helper API
+  version: 1.0.0
+  description: >-
+    This is an API based on the OpenAPI 3.0 specification for the tasks of job search assistance. This API was
+    implemented for a course project with Telegram bot.
+
+
+    _Authors: Tatyana Vakhrusheva, Valeria Khasaeva. HSE SPb 2023_
+servers:
+  - url: https://d5dd8h3anuqsgucmove7.apigw.yandexcloud.net
+tags:
+  - name: vacancies
+    description: Operations to search for vacancies
+  - name: materials
+    description: >-
+      Operations to retrieve materials for personal development in a
+      professional domain and preparation for job interview
+  - name: users
+    description: Operations on users and users' management
+  - name: salaries
+    description: >-
+      Operations on users and users' management. The data was retrived from Habr
+      (https://habr.com/ru/specials/748058/) and appeared to be relevant at the
+      moment of June, 2023.
+paths:
+  /vacancies/vacancy:
+    get:
+      tags:
+        - vacancies
+      summary: Get an array of 10 vacancies with specified parameters
+      x-yc-apigateway-integration:
+        type: http
+        url: >-
+          http://api.adzuna.com/v1/api/jobs/{country}/search/1?app_id=b4117560&app_key=f20227e2880e7c7fb2557121a08361f4&results_per_page=10&what={vacancy}&salary_min={salary_min}
+        timeouts:
+          connect: 0.5
+          read: 5
+      operationId: findVacancies
+      parameters:
+        - name: country
+          in: query
+          description: ISO-code of a target country
+          schema:
+            type: string
+            example: gb
+            enum:
+              - at
+              - au
+              - be
+              - br
+              - ca
+              - ch
+              - de
+              - es
+              - fr
+              - gb
+              - in
+              - it
+              - mx
+              - nl
+              - nz
+              - pl
+              - sg
+              - us
+              - za
+          required: true
+        - name: vacancy
+          in: query
+          description: title of a desired vacancy or job
+          schema:
+            type: string
+            example: qa
+          required: true
+        - name: full_time
+          in: query
+          description: whether desired job is full-time
+          schema:
+            type: boolean
+            example: true
+          required: true
+        - name: salary_min
+          description: minimum salary per year in $
+          in: query
+          schema:
+            type: integer
+            example: 0
+          required: true
+        - name: remote
+          in: query
+          description: whether desired job is of a remote mode
+          schema:
+            type: boolean
+            example: false
+          required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/Vacancy'
+                type: array
+          description: Vacancy
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /materials/{vacancy}/{fileId}:
+    get:
+      tags:
+        - materials
+      summary: Get materials for a specific vacancy
+      x-yc-apigateway-integration:
+        type: object_storage
+        bucket: test-bucket-for-uxers
+        object: '{vacancy}/{fileId}.pdf'
+        service_account_id: ajelumsapia4ucukorhv
+      operationId: getMaterialsByVacancy
+      parameters:
+        - description: Vacancy title
+          explode: false
+          in: path
+          name: vacancy
+          required: true
+          schema:
+            type: string
+            enum:
+              - python-developer
+              - data-analyst
+              - data-scientist
+              - frontend-developer
+              - java-developer
+              - ml-engineer
+          style: simple
+        - description: Random id of a book to return
+          explode: false
+          in: path
+          name: fileId
+          required: true
+          schema:
+            type: integer
+            enum:
+              - 1
+              - 2
+              - 3
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: Deleted user
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /materials/interview:
+    get:
+      tags:
+        - materials
+      summary: Get advice for an interview preparation
+      operationId: getAdviceForInterview
+      x-yc-apigateway-integration:
+        type: dummy
+        content:
+          '*': >-
+            Before the interview:
+
+            Practice more! Try to answer honestly and analyze your answers from
+            the interviewer's point of view: what would you like the interviewer
+            to know about you? Which answers seem less appropriate to you and
+            how would you like to improve them?
+
+            Take the time to research the company. You can look at the company's
+            website, social media, and news articles.
+
+            Think about how your talents could be useful in your new role.
+
+            Think through your expectations for the new role and prepare
+            questions for the interviewer.
+
+            Set everything up in advance: make sure your Internet connection is
+            stable, check your camera and microphone, and find a suitable place
+            where no one will distract you.
+
+            Don't be late!
+
+            During the interview:
+
+            Listen carefully to each question. Don't be afraid to pause to
+            collect your thoughts before answering.
+
+            If you're not sure what you're being asked, don't be afraid to ask
+            the interviewer for clarification.
+
+            Highlight your skills and achievements.
+
+            Be honest and sincere.
+
+            Don't speak badly about your former boss, the team, or the company
+            as a whole. Focus on what you have learned from difficult situations
+            and how you have grown.
+
+            After the interview:
+
+            Thank the interviewer for their time.
+
+            You can ask the interviewer for feedback and/or contacts if you want
+            to ask additional questions.
+
+            Ask your interviewer about next steps.
+        http_code: 200
+        http_headers:
+          Content-Type: text/plain
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: successful response with interview advice
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /materials/courses/{vacancyTitle}:
+    get:
+      tags:
+        - materials
+      summary: >-
+        Get a link to a recommended course for a specific career direction or
+        vacancy
+      operationId: getCourseRecommendation
+      parameters:
+        - description: Title of a vacancy or career direction
+          explode: false
+          in: path
+          name: vacancyTitle
+          required: true
+          schema:
+            type: string
+            enum:
+              - Frontend Developer
+              - Python Developer
+              - Java Developer
+              - C++ Developer
+              - C# Developer
+              - Data Scientist
+              - Data Analyst
+              - ML Engineer
+              - Android Developer
+              - iOS Developer
+          style: simple
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4eevocjekkuju9ggprk
+        http_code: 200
+        http_headers:
+          Content-Type: text/plain
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Course'
+          description: successful response with a link to course
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /users:
+    get:
+      tags:
+        - users
+      summary: Get an array of all users in DB
+      x-yc-apigateway-integration:
+        type: cloud_ydb
+        action: Scan
+        database: /ru-central1/b1gmufohhpgspqup9f39/etnuj750mp68d0jsv757
+        table_name: job_bot_users
+      operationId: getUsers
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/User'
+                type: array
+          description: Users
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /users/new_user:
+    post:
+      tags:
+        - users
+      summary: Create a new user
+      x-yc-apigateway-integration:
+        type: cloud_ydb
+        action: PutItem
+        database: /ru-central1/b1gmufohhpgspqup9f39/etnuj750mp68d0jsv757
+        table_name: job_bot_users
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: User to create
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: Created or updated sser
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /users/{userId}:
+    get:
+      tags:
+        - users
+      summary: Get user by id
+      x-yc-apigateway-integration:
+        type: cloud_ydb
+        action: GetItem
+        database: /ru-central1/b1gmufohhpgspqup9f39/etnuj750mp68d0jsv757
+        table_name: job_bot_users
+        key: '{"id": {userId}}'
+      operationId: getUserById
+      parameters:
+        - description: Identifier of user
+          explode: false
+          in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: User
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+    put:
+      tags:
+        - users
+      summary: Update user by id
+      x-yc-apigateway-integration:
+        type: cloud_ydb
+        action: UpdateItem
+        database: /ru-central1/b1gmufohhpgspqup9f39/etnuj750mp68d0jsv757
+        table_name: job_bot_users
+        key: '{"id": {userId}}'
+      operationId: updateUserById
+      parameters:
+        - description: Identifier of user
+          explode: false
+          in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+          style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+        description: User or attributes to update
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+          description: Updated user
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+    delete:
+      tags:
+        - users
+      summary: Delete user by id
+      x-yc-apigateway-integration:
+        type: cloud_ydb
+        action: DeleteItem
+        database: /ru-central1/b1gmufohhpgspqup9f39/etnuj750mp68d0jsv757
+        table_name: job_bot_users
+        key: '{"id": {userId}}'
+      operationId: deleteUserById
+      parameters:
+        - description: Identifier of user
+          explode: false
+          in: path
+          name: userId
+          required: true
+          schema:
+            type: integer
+          style: simple
+      responses:
+        '200':
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: User {userId} was deleted
+          description: Successful delete-operation
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /salaries/cities:
+    get:
+      tags:
+        - salaries
+      summary: Get top-10 Russian cities with biggest median salaries in IT-sphere
+      x-yc-apigateway-integration:
+        type: cloud_ydb
+        action: Scan
+        database: /ru-central1/b1gmufohhpgspqup9f39/etnuj750mp68d0jsv757
+        table_name: salary_cities
+      operationId: getSalariesByCities
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SalaryCity'
+                type: array
+          description: Salary
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /salaries/cities/{city}:
+    get:
+      tags:
+        - salaries
+      summary: Get salary in the city by its name
+      x-yc-apigateway-integration:
+        type: cloud_ydb
+        action: GetItem
+        database: /ru-central1/b1gmufohhpgspqup9f39/etnuj750mp68d0jsv757
+        table_name: salary_cities
+        key: '{"city": "{city}"}'
+      operationId: getSalaryInCity
+      parameters:
+        - description: Name of city (written in Latin)
+          explode: false
+          in: path
+          name: city
+          required: true
+          schema:
+            type: string
+          style: simple
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SalaryCity'
+          description: SalaryCity
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+  /salaries/companies:
+    get:
+      tags:
+        - salaries
+      summary: Get top-10 companies with biggest median salaries in IT-sphere in Russia
+      x-yc-apigateway-integration:
+        type: cloud_ydb
+        action: Scan
+        database: /ru-central1/b1gmufohhpgspqup9f39/etnuj750mp68d0jsv757
+        table_name: salary_companies
+      operationId: getSalariesByCompanies
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/SalaryCompany'
+                type: array
+          description: Salary
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+          description: error
+components:
+  schemas:
+    User:
+      properties:
+        location:
+          type: string
+        search_stage:
+          type: string
+        permanent:
+          type: string
+        vacancy:
+          type: string
+        id:
+          type: integer
+        min_salary:
+          type: integer
+      required:
+        - id
+      type: object
+    SalaryCity:
+      properties:
+        city:
+          type: integer
+        city_id:
+          type: string
+        salary:
+          type: integer
+      type: object
+    SalaryCompany:
+      properties:
+        company_id:
+          type: integer
+        company_name:
+          type: string
+        salary:
+          type: integer
+      type: object
+    Course:
+      properties:
+        link:
+          type: string
+      type: object
+    Vacancy:
+      properties:
+        longitude:
+          type: integer
+        salary_min:
+          type: integer
+        __CLASS__:
+          type: string
+        created:
+          type: string
+        company:
+          type: object
+        latitude:
+          type: integer
+        salary_max:
+          type: integer
+        redirect_url:
+          type: string
+        category:
+          type: object
+        description:
+          type: string
+        id:
+          type: string
+        location:
+          type: object
+        salary_is_predicted:
+          type: string
+        adref:
+          type: string
+        title:
+          type: string
+      required:
+        - message
+      type: object
+    Error:
+      properties:
+        message:
+          type: string
+          example: 'there is no item with key {"id": 0}'
+      required:
+        - message
+      type: object
+x-yc-apigateway:
+  service_account_id: ajelumsapia4ucukorhv
