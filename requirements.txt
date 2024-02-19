@@ -1,0 +1,4 @@
+ydb
+ydb[yc]
+requests
+typing
